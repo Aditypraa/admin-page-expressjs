@@ -1,0 +1,237 @@
+<div class="container">
+    <h2>Create New Purchase</h2>
+
+    <form action="/purchases" method="POST" id="purchaseForm">
+        <div class="mb-3">
+            <label for="customerName" class="form-label">Customer Name</label>
+            <input type="text" class="form-control" id="customerName" name="customerName" required>
+        </div>
+
+        <div id="itemsContainer">
+            <div class="card mb-3 item-card">
+                <div class="card-body">
+                    <h5 class="card-title">Item #1</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Product</label>
+                            <select name="items[0][productId]" class="form-control product-select" required>
+                                <option value="">-- Select Product --</option>
+                                <% products.forEach(product=> { %>
+                                    <option value="<%= product.id %>" data-price="<%= product.price %>"
+                                        data-stock="<%= product.stock ? product.stock.quantity : 0 %>">
+                                        <%= product.name %> - Rp <%= product.price.toLocaleString('id-ID') %> (Stock:
+                                                <%= product.stock ? product.stock.quantity : 0 %>)
+                                    </option>
+                                    <% }); %>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="items[0][quantity]" class="form-control quantity-input" min="1"
+                                value="1" required>
+                            <small class="text-muted stock-info"></small>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-sm btn-danger remove-item"
+                                style="display: none;">Remove</button>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div class="subtotal text-end"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <button type="button" id="addItem" class="btn btn-secondary">Add Another Item</button>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Total Purchase</h5>
+                    <h5 class="mb-0" id="totalAmount">Rp 0</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">Create Purchase</button>
+            <a href="/purchases" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let itemCount = 1;
+
+        // Format to Rupiah
+        function formatRupiah(amount) {
+            return `Rp ${amount.toLocaleString('id-ID')}`;
+        }
+
+        // Calculate total purchase amount
+        function calculateTotal() {
+            let total = 0;
+            document.querySelectorAll('.item-card').forEach(item => {
+                const select = item.querySelector('.product-select');
+                const quantity = item.querySelector('.quantity-input');
+                const subtotalEl = item.querySelector('.subtotal');
+
+                if (select.value) {
+                    const price = parseFloat(select.options[select.selectedIndex].dataset.price);
+                    const qty = parseInt(quantity.value) || 0;
+                    const subtotal = price * qty;
+
+                    total += subtotal;
+                    subtotalEl.textContent = `Subtotal: ${formatRupiah(subtotal)}`;
+                } else {
+                    subtotalEl.textContent = '';
+                }
+            });
+
+            document.getElementById('totalAmount').textContent = formatRupiah(total);
+        }
+
+        // Add event listeners to recalculate total on change
+        function addTotalCalculationListeners(item) {
+            const select = item.querySelector('.product-select');
+            const quantity = item.querySelector('.quantity-input');
+
+            select.addEventListener('change', calculateTotal);
+            quantity.addEventListener('input', calculateTotal);
+        }
+
+        // Add listeners to existing items
+        document.querySelectorAll('.item-card').forEach(item => {
+            addTotalCalculationListeners(item);
+        });
+
+        // Calculate initial total
+        calculateTotal();
+
+        // Add item button
+        document.getElementById('addItem').addEventListener('click', function () {
+            const itemsContainer = document.getElementById('itemsContainer');
+            const itemCard = document.createElement('div');
+            itemCard.className = 'card mb-3 item-card';
+            itemCard.innerHTML = `
+        <div class="card-body">
+          <h5 class="card-title">Item #${itemCount + 1}</h5>
+          <div class="row">
+            <div class="col-md-6">
+              <label class="form-label">Product</label>
+              <select name="items[${itemCount}][productId]" class="form-control product-select" required>
+                <option value="">-- Select Product --</option>
+                ${Array.from(document.querySelector('.product-select').options)
+                    .map(opt => opt.outerHTML)
+                    .join('')}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Quantity</label>
+              <input type="number" name="items[${itemCount}][quantity]" class="form-control quantity-input" min="1" value="1" required>
+              <small class="text-muted stock-info"></small>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="button" class="btn btn-sm btn-danger remove-item">Remove</button>
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-12">
+                <div class="subtotal text-end"></div>
+            </div>
+          </div>
+        </div>
+      `;
+            itemsContainer.appendChild(itemCard);
+            itemCount++;
+
+            // Show remove button for first item if there are multiple items now
+            if (itemCount > 1) {
+                document.querySelector('.remove-item').style.display = 'block';
+            }
+
+            // Add event listener to new remove button
+            itemCard.querySelector('.remove-item').addEventListener('click', function () {
+                itemCard.remove();
+                itemCount--;
+
+                // Hide remove button for first item if there is only one item left
+                if (itemCount === 1) {
+                    document.querySelector('.remove-item').style.display = 'none';
+                }
+
+                // Update item numbers
+                updateItemNumbers();
+
+                // Recalculate total
+                calculateTotal();
+            });
+
+            // Add event listeners to new select and quantity input
+            setupProductSelectListeners(
+                itemCard.querySelector('.product-select'),
+                itemCard.querySelector('.quantity-input'),
+                itemCard.querySelector('.stock-info')
+            );
+
+            // Add total calculation listeners to new item
+            addTotalCalculationListeners(itemCard);
+
+            // Calculate updated total
+            calculateTotal();
+        });
+
+        // Function to update item numbers
+        function updateItemNumbers() {
+            document.querySelectorAll('.item-card').forEach((card, index) => {
+                card.querySelector('.card-title').textContent = `Item #${index + 1}`;
+
+                // Update input names
+                const select = card.querySelector('.product-select');
+                const quantityInput = card.querySelector('.quantity-input');
+
+                select.name = `items[${index}][productId]`;
+                quantityInput.name = `items[${index}][quantity]`;
+            });
+        }
+
+        // Setup event listeners for product selects
+        function setupProductSelectListeners(select, quantityInput, stockInfo) {
+            select.addEventListener('change', function () {
+                const option = this.options[this.selectedIndex];
+                if (option.value) {
+                    const stock = option.dataset.stock;
+                    quantityInput.max = stock;
+                    stockInfo.textContent = `Available stock: ${stock}`;
+
+                    // If quantity is more than stock, adjust it
+                    if (parseInt(quantityInput.value) > parseInt(stock)) {
+                        quantityInput.value = stock;
+                    }
+
+                    // Recalculate total
+                    calculateTotal();
+                } else {
+                    stockInfo.textContent = '';
+                    quantityInput.removeAttribute('max');
+
+                    // Recalculate total
+                    calculateTotal();
+                }
+            });
+        }
+
+        // Setup initial select listeners
+        document.querySelectorAll('.product-select').forEach((select, index) => {
+            const quantityInput = document.querySelectorAll('.quantity-input')[index];
+            const stockInfo = document.querySelectorAll('.stock-info')[index];
+            setupProductSelectListeners(select, quantityInput, stockInfo);
+        });
+    });
+</script>

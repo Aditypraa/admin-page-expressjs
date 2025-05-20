@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  stock       Stock?
+  purchases   PurchaseItem[] // Relasi one-to-many dengan PurchaseItem
+}
+
+model Stock {
+  id        Int      @id @default(autoincrement())
+  productId Int      @unique
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id]) // Relasi one-to-one dengan Product
+}
+
+model Purchase {
+  id            Int           @id @default(autoincrement())
+  customerName  String
+  totalAmount   Float
+  status        PurchaseStatus @default(COMPLETED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         PurchaseItem[] // Relasi one-to-many dengan PurchaseItem
+}
+
+model PurchaseItem {
+  id          Int      @id @default(autoincrement())
+  purchaseId  Int
+  productId   Int
+  quantity    Int
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade) // Relasi many-to-one dengan Purchase
+  product     Product  @relation(fields: [productId], references: [id]) // Relasi many-to-one dengan Product
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  CANCELLED
+}
