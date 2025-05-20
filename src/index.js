@@ -1,14 +1,14 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import expressLayouts from "express-ejs-layouts"; // Add this import
+import expressLayouts from "express-ejs-layouts";
 import productsRouter from "./routes/products.js";
 import stockRouter from "./routes/stock.js";
 import purchasesRouter from "./routes/purchases.js";
 import { getDashboard } from "./controllers/DashboardController.js";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -21,7 +21,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 
 // Set up EJS with layouts
 app.use(expressLayouts);
-app.set("layout", "layout"); // Set the default layout
+app.set("layout", "layout");
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -37,6 +37,11 @@ app.use("/stock", stockRouter);
 app.use("/purchases", purchasesRouter);
 
 // Server
-app.listen(port, () => {
-  console.log(`Admin page app running on http://localhost:${port}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(port, () => {
+    console.log(`Admin page app running on http://localhost:${port}`);
+  });
+}
+
+// Export app for Vercel
+export default app;
